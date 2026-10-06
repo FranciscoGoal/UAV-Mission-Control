@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>4.1.1</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+	<groupId>com.example</groupId>
+	<artifactId>MissionControl</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>UAV Mission Control</name>
+	<description>Event-driven UAV mission control backend built with Spring Boot and WebSocket/STOMP</description>
+	<url>https://github.com/FranciscoGoal/UAV-Mission-Control</url>
+	<licenses>
+		<license>
+			<name>MIT License</name>
+			<url>https://opensource.org/licenses/MIT</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+	<developers>
+		<developer>
+			<id>FranciscoGoal</id>
+			<name>FranciscoGoal</name>
+			<url>https://github.com/FranciscoGoal</url>
+		</developer>
+	</developers>
+	<scm>
+		<connection>scm:git:https://github.com/FranciscoGoal/UAV-Mission-Control.git</connection>
+		<developerConnection>scm:git:ssh://git@github.com/FranciscoGoal/UAV-Mission-Control.git</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/FranciscoGoal/UAV-Mission-Control</url>
+	</scm>
+	<properties>
+		<java.version>25</java.version>
+	</properties>
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-websocket</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-websocket-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
