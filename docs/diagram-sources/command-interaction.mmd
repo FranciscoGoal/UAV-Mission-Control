@@ -1,0 +1,27 @@
+sequenceDiagram
+    actor Caller as Internal caller
+    participant Command as Command model
+    participant CR as Command repository
+    participant Execution as Execution snapshot
+    participant ER as Execution repository
+
+    Caller->>Command: create command
+    Command->>Command: validate metadata and payload
+    alt Invalid command
+        Command-->>Caller: validation exception
+    else Valid command
+        Command-->>Caller: UavCommand
+        Caller->>CR: save(command)
+        CR-->>Caller: stored command
+        opt Record current execution status
+            Caller->>Execution: create(command, status, context)
+            Execution-->>Caller: immutable snapshot
+            Caller->>ER: save(snapshot)
+            alt First or non-older update
+                ER-->>Caller: stored snapshot
+            else Changed command or older update
+                ER-->>Caller: IllegalArgumentException
+            end
+        end
+    end
+    Note over Caller,ER: No external receipt, UAV dispatch, ACK, result, retry, or timeout workflow exists yet.

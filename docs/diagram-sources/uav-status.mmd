@@ -1,0 +1,16 @@
+stateDiagram-v2
+    direction LR
+    state "Any declared UAV status" as AnyStatus
+    state "Update rejected" as Rejected
+
+    [*] --> AnyStatus: register with any non-null status
+    AnyStatus --> AnyStatus: replace with any non-null status
+    AnyStatus --> Rejected: null status
+    Rejected --> AnyStatus: stored value unchanged
+
+    note right of AnyStatus
+        GROUND · TAKING_OFF · FLYING
+        RETURNING_HOME · LANDING · DISCONNECTED
+
+        No transition matrix is enforced.
+    end note

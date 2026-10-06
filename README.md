@@ -1,49 +1,56 @@
-# Mission Control
+<p align="center">
+  <img src="docs/assets/mission-control-hero.svg" alt="Mission Control - UAV systems backend" width="100%">
+</p>
 
-Mission Control is a Spring Boot backend prototype for tracking unmanned aerial vehicles (UAVs) and modeling command workflows. It provides a small domain-centered foundation for registering aircraft, maintaining their latest position and operational state, and recording commands and execution snapshots in memory.
+<p align="center">
+  <img src="https://img.shields.io/badge/Java-25-0b2538?logo=openjdk&logoColor=67e8f9" alt="Java 25">
+  <img src="https://img.shields.io/badge/Spring_Boot-4.1.1-0b2538?logo=springboot&logoColor=2dd4bf" alt="Spring Boot 4.1.1">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-0b2538?logoColor=white" alt="MIT License"></a>
+</p>
 
-The project currently exposes these capabilities as Java application and repository APIs. WebSocket/STOMP transport is configured, but there are no application message handlers, REST endpoints, operator interface, simulator, or connection to real UAVs yet.
+<p align="center">
+  <strong>A domain-first backend for UAV state, telemetry, and command workflows.</strong>
+</p>
 
-## Current Capabilities
+Mission Control is an open-source Java project exploring the backend foundations of a UAV operations platform. It brings aircraft identity, position, operational state, and command tracking into one coherent model, with a clear path toward real-time messaging, simulation, and an operator-facing control experience.
 
-- Register a UAV with its identifier, current position, and reported operational status.
-- Retrieve a registered UAV and update its latest position or status.
-- Validate latitude, longitude, altitude, command metadata, takeoff altitude, and `GO_TO` targets in the domain model.
-- Represent `TAKE_OFF`, `GO_TO`, `LAND`, and `RETURN_HOME` commands with creation and expiration timestamps.
-- Store UAVs, commands, and the latest command-execution snapshot in concurrent in-memory repositories.
-- Start a Spring WebSocket/STOMP server with an in-process simple broker.
+The repository is intentionally being built from the core outward: establish reliable domain rules and storage boundaries first, then connect transport, command execution, persistence, simulation, and presentation.
 
-All state is process-local and is lost when the application stops. UAV and command status values are recorded, but transition rules are not enforced. Command dispatch, acknowledgements, completion results, and automatic expiration are not connected to an application workflow.
+## At a Glance
+
+| UAV state | Command model | Messaging foundation | Development safety net |
+|:---|:---|:---|:---|
+| Register aircraft and maintain their latest validated position and reported status. | Model takeoff, navigation, landing, return-home, and execution snapshots. | Run a WebSocket/STOMP endpoint with an in-process broker ready for application handlers. | Exercise domain, service, repository, concurrency, configuration, and context behavior with automated tests. |
+
+### What works today
+
+- **UAV registry:** register and retrieve aircraft through `UavService`, with duplicate-ID protection.
+- **Validated position state:** enforce finite coordinates, geographic bounds, and non-negative altitude.
+- **Operational state:** record `GROUND`, `TAKING_OFF`, `FLYING`, `RETURNING_HOME`, `LANDING`, or `DISCONNECTED` without inventing a default at registration.
+- **Command vocabulary:** represent `TAKE_OFF`, `GO_TO`, `LAND`, and `RETURN_HOME` with identity and expiration metadata.
+- **Execution snapshots:** retain the latest recorded command status while rejecting older updates or changed command definitions.
+- **Replaceable storage boundaries:** keep UAV, command, and execution data behind repository interfaces with concurrent in-memory adapters.
 
 ## Architecture
 
-The code follows a layered structure: domain objects hold validation rules, `UavService` coordinates the implemented UAV use cases, repository interfaces define storage boundaries, and infrastructure adapters keep the current state in memory. The command model and repositories exist as a separate foundation and are not yet connected to a service or messaging handler.
+Mission Control currently has one connected application flow: internal callers use `UavService` to work with the UAV domain and repository. Command models and repositories form a second foundation awaiting orchestration. STOMP transport is configured, but application message handlers are the next integration boundary.
 
-```mermaid
-flowchart LR
-    Caller[Internal application caller] --> Service[UavService]
-    Service --> UavDomain[UAV domain]
-    Service --> UavPort[UavRepository]
-    UavAdapter[InMemoryUavRepository] -. implements .-> UavPort
+<p align="center">
+  <a href="docs/diagrams.md">
+    <img src="docs/assets/diagrams/system-architecture.svg" alt="Mission Control system architecture" width="100%">
+  </a>
+</p>
 
-    CommandDomain[Command domain] --> CommandPorts[Command repositories]
-    CommandAdapters[In-memory command storage] -. implements .-> CommandPorts
+All current repositories are process-local and in memory. There is no database, telemetry history, external message broker, command dispatcher, simulator, or operator interface in this version.
 
-    Client[STOMP client] --> Transport[WebSocket endpoint /ws]
-    Transport --> Broker[In-process STOMP broker]
-    Transport -.-> MissingHandlers[No application handlers implemented]
-```
-
-See [Technical Diagrams](docs/diagrams.md) for the implemented flows, state behavior, and domain models.
-
-## Quick Start
+## Run Mission Control
 
 ### Requirements
 
 - JDK 25
 - Git, if cloning the repository
 
-The Maven Wrapper is included, so a separate Maven installation is not required. The first build may need network access to download Maven and project dependencies.
+The Maven Wrapper is included; a separate Maven installation is not required.
 
 ```bash
 git clone https://github.com/FranciscoGoal/UAV-Mission-Control.git
@@ -51,17 +58,9 @@ cd UAV-Mission-Control
 ./mvnw spring-boot:run
 ```
 
-On Windows PowerShell, use `.\mvnw.cmd spring-boot:run`.
+The server starts on port `8080` and exposes the WebSocket handshake endpoint at `ws://localhost:8080/ws`. This endpoint provides STOMP transport only; application destinations and external payload contracts are not implemented yet.
 
-The application starts on port `8080` by default. Its WebSocket handshake endpoint is:
-
-```text
-ws://localhost:8080/ws
-```
-
-The endpoint accepts STOMP connections, but the repository does not yet define application destinations or payload contracts for registration, telemetry, or commands. It does not serve a web interface.
-
-Run the test suite and build the executable JAR with:
+On Windows PowerShell, run `.\mvnw.cmd spring-boot:run` instead. To verify or package the project:
 
 ```bash
 ./mvnw clean test
@@ -69,35 +68,30 @@ Run the test suite and build the executable JAR with:
 java -jar target/MissionControl-0.0.1-SNAPSHOT.jar
 ```
 
-Use `mvnw.cmd` instead of `mvnw` for the equivalent Windows commands.
+## The Flight Plan
 
-## Documentation
+The roadmap separates the current backend foundation from the capabilities still to come. It expresses development direction, not release commitments.
 
-- [Technical diagrams](docs/diagrams.md): architecture, current interaction flows, state behavior, and domain relationships.
-- [ADR-001: Require the Current UAV Status During Registration](docs/adr/001-explicit-uav-status-registration.md): rationale for requiring an explicit status when a UAV is registered.
+| Phase | Focus | Intended outcome |
+|:---:|:---|:---|
+| **01** | Real-time messaging | Define STOMP contracts, connect UAV registration and telemetry, publish state updates, and return consistent protocol errors. |
+| **02** | Command loop | Add target validation, dispatch, acknowledgements, results, expiration, and explicit state-transition policies. |
+| **03** | Operational depth | Introduce durable persistence, telemetry history, missions, authentication, authorization, and an end-to-end UAV simulator. |
+| **04** | Control experience | Add observability and deployment packaging, then build an operator interface against the stable backend and simulator. |
 
-## Roadmap
+Real-aircraft integration would require a separately defined protocol, hardware adapter, safety model, and validation program. None of those are claimed by the current repository.
 
-Mission Control is at an early backend-prototype stage. The intended development path is incremental; the items below describe direction rather than currently available features or release commitments.
+## Explore the Project
 
-### 1. Complete the messaging loop
-
-Define external message contracts and STOMP application destinations, connect UAV registration and telemetry to `UavService`, publish state updates, and provide consistent protocol errors. Contract and integration tests should accompany the external API.
-
-### 2. Connect command execution
-
-Build an application service around the existing command models and repositories. This stage includes target-UAV validation, dispatch, acknowledgements, completion or failure results, expiration handling, and explicit transition rules for UAV and command states.
-
-### 3. Add operational capabilities
-
-Introduce durable storage and telemetry history, then model missions and their assignment to UAVs. A simulator can provide repeatable end-to-end scenarios before any real-aircraft integration is considered. Authentication and authorization are also required before exposing control operations beyond a development environment.
-
-### 4. Prepare operation and presentation
-
-Add health checks, metrics, structured logging, and reproducible deployment packaging. An operator interface can then be built against a stable external API and demonstrated with the simulator.
+| Resource | Contents |
+|---|---|
+| [Technical diagrams](docs/diagrams.md) | Static architecture, interaction, state-behavior, and domain-model views. |
+| [ADR-001](docs/adr/001-explicit-uav-status-registration.md) | Why registration requires the UAV's current status instead of assuming it is on the ground. |
+| [`src/main/java`](src/main/java/com/example/missioncontrol) | Application, domain, repository, and WebSocket implementation. |
+| [`src/test/java`](src/test/java/com/example/missioncontrol) | Automated behavior and configuration tests. |
 
 ## Project Status
 
-This repository is suitable for domain modeling and backend experimentation. It is not an operational flight-control system and does not currently demonstrate real-UAV integration, safety guarantees, or a complete telemetry and command loop.
+Mission Control is an early backend prototype for engineering and domain exploration. It is not an operational flight-control system and currently provides no real-UAV integration or safety guarantees.
 
-Mission Control is maintained by [FranciscoGoal](https://github.com/FranciscoGoal) and distributed under the [MIT License](LICENSE).
+Built and maintained by [FranciscoGoal](https://github.com/FranciscoGoal). Distributed under the [MIT License](LICENSE).

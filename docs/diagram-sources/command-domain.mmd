@@ -1,0 +1,62 @@
+classDiagram
+    direction LR
+
+    class UavCommand {
+        <<interface>>
+        +UUID id
+        +String uavId
+        +CommandType type
+        +Instant createdAt
+        +Instant expiresAt
+    }
+    class TakeOffCommand {
+        +double targetAltitudeMeters
+    }
+    class GoToCommand {
+        +Position targetPosition
+    }
+    class LandCommand
+    class ReturnHomeCommand
+    class CommandExecution {
+        +UavCommand command
+        +CommandStatus status
+        +String operatorSesionId
+        +List~String~ parameters
+        +Instant updatedAt
+    }
+    class CommandType {
+        <<enumeration>>
+        TAKE_OFF
+        GO_TO
+        LAND
+        RETURN_HOME
+    }
+    class CommandStatus {
+        <<enumeration>>
+        PENDING
+        SENT
+        ACKNOWLEDGED
+        COMPLETED
+        FAILED
+        EXPIRED
+    }
+    class Uav {
+        +UUID id
+    }
+    class CommandRepository {
+        <<interface>>
+    }
+    class CommandExecutionRepository {
+        <<interface>>
+    }
+
+    UavCommand <|.. TakeOffCommand
+    UavCommand <|.. GoToCommand
+    UavCommand <|.. LandCommand
+    UavCommand <|.. ReturnHomeCommand
+    UavCommand --> CommandType
+    CommandExecution *-- UavCommand : embeds
+    CommandExecution --> CommandStatus
+    CommandRepository --> UavCommand : stores
+    CommandExecutionRepository --> CommandExecution : latest snapshot
+    UavCommand ..> Uav : string ID, not resolved

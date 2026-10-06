@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 560" role="img" aria-labelledby="title desc">
+  <title id="title">Mission Control</title>
+  <desc id="desc">A dark aviation-themed illustration with a UAV, telemetry paths, and a mission control grid.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#050b14"/>
+      <stop offset="0.55" stop-color="#091a2c"/>
+      <stop offset="1" stop-color="#0c2632"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="75%" cy="48%" r="45%">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#38bdf8" stroke-opacity=".08"/>
+    </pattern>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1600" height="560" rx="28" fill="url(#bg)"/>
+  <rect width="1600" height="560" rx="28" fill="url(#grid)"/>
+  <rect width="1600" height="560" rx="28" fill="url(#glow)"/>
+  <path d="M0 448 C270 390 420 494 680 430 S1110 360 1600 440 V560 H0Z" fill="#07131f" opacity=".86"/>
+  <path d="M0 448 C270 390 420 494 680 430 S1110 360 1600 440" fill="none" stroke="#2dd4bf" stroke-opacity=".35" stroke-width="2"/>
+
+  <g font-family="Inter,Segoe UI,Arial,sans-serif">
+    <text x="116" y="154" fill="#67e8f9" font-size="20" font-weight="700" letter-spacing="5">UAV SYSTEMS LAB</text>
+    <text x="110" y="247" fill="#f0f9ff" font-size="82" font-weight="760" letter-spacing="-3">MISSION</text>
+    <text x="110" y="330" fill="#f0f9ff" font-size="82" font-weight="760" letter-spacing="-3">CONTROL</text>
+    <rect x="112" y="367" width="76" height="4" rx="2" fill="#2dd4bf"/>
+    <text x="210" y="378" fill="#bae6fd" font-size="24" font-weight="450">State, telemetry and command foundations for UAV operations</text>
+    <g transform="translate(112 425)">
+      <rect width="162" height="42" rx="21" fill="#0e2c3e" stroke="#38bdf8" stroke-opacity=".65"/>
+      <circle cx="25" cy="21" r="5" fill="#2dd4bf" filter="url(#softGlow)"/>
+      <text x="42" y="27" fill="#dff7ff" font-size="15" font-weight="650" letter-spacing="1.4">BACKEND PROTOTYPE</text>
+    </g>
+  </g>
+
+  <g transform="translate(1090 276)" fill="none">
+    <circle r="178" stroke="#38bdf8" stroke-opacity=".14" stroke-width="2"/>
+    <circle r="126" stroke="#38bdf8" stroke-opacity=".22" stroke-width="2" stroke-dasharray="9 10"/>
+    <circle r="72" stroke="#2dd4bf" stroke-opacity=".25" stroke-width="2"/>
+    <path d="M-195 0H195M0-195V195" stroke="#38bdf8" stroke-opacity=".12"/>
+    <path d="M0 0L126-93" stroke="url(#line)" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="126" cy="-93" r="7" fill="#67e8f9" stroke="#cffafe" filter="url(#softGlow)"/>
+    <circle cx="-78" cy="98" r="5" fill="#2dd4bf" filter="url(#softGlow)"/>
+    <circle cx="148" cy="69" r="4" fill="#818cf8"/>
+  </g>
+
+  <g transform="translate(1090 274)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M-116-22L-42-8L-24-32H24L42-8L116-22L129-6L62 22L28 17L18 45H-18L-28 17L-62 22L-129-6Z" fill="#0b2635" stroke="#67e8f9" stroke-width="4"/>
+    <rect x="-34" y="-22" width="68" height="44" rx="12" fill="#12374a" stroke="#2dd4bf" stroke-width="3"/>
+    <path d="M-26 22L-43 53M26 22L43 53" fill="none" stroke="#67e8f9" stroke-width="4"/>
+    <path d="M-68-13L-91-49M68-13L91-49" fill="none" stroke="#67e8f9" stroke-width="4"/>
+    <ellipse cx="-98" cy="-54" rx="42" ry="10" fill="#38bdf8" fill-opacity=".1" stroke="#38bdf8" stroke-width="3"/>
+    <ellipse cx="98" cy="-54" rx="42" ry="10" fill="#38bdf8" fill-opacity=".1" stroke="#38bdf8" stroke-width="3"/>
+    <circle r="8" fill="#2dd4bf" filter="url(#softGlow)"/>
+  </g>
+
+  <g font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" fill="#bae6fd">
+    <path d="M1280 124h146" stroke="#38bdf8" stroke-opacity=".55"/>
+    <text x="1290" y="113" letter-spacing="2">POSITION LOCK</text>
+    <path d="M1260 400h182" stroke="#2dd4bf" stroke-opacity=".55"/>
+    <text x="1290" y="426" letter-spacing="2">COMMAND MODEL</text>
+  </g>
+
+  <path d="M742 94h106M742 94v34M1458 94h32v92" fill="none" stroke="#38bdf8" stroke-opacity=".32" stroke-width="2"/>
+  <path d="M742 486h106M742 486v-34M1458 486h32v-92" fill="none" stroke="#2dd4bf" stroke-opacity=".28" stroke-width="2"/>
+</svg>

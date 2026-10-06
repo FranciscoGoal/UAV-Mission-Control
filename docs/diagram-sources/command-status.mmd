@@ -1,0 +1,17 @@
+stateDiagram-v2
+    direction LR
+    state "Any declared command status" as AnyStatus
+    state "Save rejected" as Rejected
+
+    [*] --> AnyStatus: create execution with any status
+    AnyStatus --> AnyStatus: same command and non-older timestamp
+    AnyStatus --> Rejected: changed command definition
+    AnyStatus --> Rejected: older timestamp
+    Rejected --> AnyStatus: stored snapshot unchanged
+
+    note right of AnyStatus
+        PENDING · SENT · ACKNOWLEDGED
+        COMPLETED · FAILED · EXPIRED
+
+        No lifecycle transitions are enforced.
+    end note

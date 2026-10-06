@@ -1,0 +1,43 @@
+classDiagram
+    direction LR
+
+    class Uav {
+        -UUID id
+        -Position position
+        -UavStatus status
+        +updatePosition(Position)
+        +updateStatus(UavStatus)
+    }
+    class Position {
+        +double latitude
+        +double longitude
+        +double altitude
+    }
+    class UavStatus {
+        <<enumeration>>
+        GROUND
+        TAKING_OFF
+        FLYING
+        RETURNING_HOME
+        LANDING
+        DISCONNECTED
+    }
+    class UavService {
+        +registerUav(UUID, Position, UavStatus) Uav
+        +getUav(UUID) Uav
+        +updatePosition(UUID, Position) Uav
+        +updateStatus(UUID, UavStatus) Uav
+    }
+    class UavRepository {
+        <<interface>>
+        +save(Uav) Uav
+        +findById(UUID) Optional~Uav~
+        +findAll() List~Uav~
+    }
+    class InMemoryUavRepository
+
+    Uav *-- Position : latest position
+    Uav --> UavStatus : current status
+    UavService --> Uav
+    UavService --> UavRepository
+    InMemoryUavRepository ..|> UavRepository

@@ -1,0 +1,27 @@
+sequenceDiagram
+    actor Caller as Internal caller
+    participant Position as Position
+    participant Service as UavService
+    participant Repository as UavRepository
+    participant Uav as Uav
+
+    Caller->>Position: create(latitude, longitude, altitude)
+    Position->>Position: validate finite values and ranges
+    alt Invalid position
+        Position-->>Caller: IllegalArgumentException
+    else Valid position
+        Position-->>Caller: validated position
+        Caller->>Service: updatePosition(uavId, position)
+        Service->>Repository: findById(uavId)
+        alt UAV is registered
+            Repository-->>Service: Uav
+            Service->>Uav: updatePosition(position)
+            Service->>Repository: save(uav)
+            Repository-->>Service: updated UAV
+            Service-->>Caller: updated UAV
+        else UAV is unknown
+            Repository-->>Service: empty
+            Service-->>Caller: IllegalArgumentException
+        end
+    end
+    Note over Caller,Uav: This is an internal latest-position update, not an external telemetry pipeline.
