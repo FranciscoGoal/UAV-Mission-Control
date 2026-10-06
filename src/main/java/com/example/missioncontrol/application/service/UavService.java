@@ -17,7 +17,11 @@ public class UavService {
         this.uavRepository = uavRepository;
     }
 
-    public synchronized Uav registerUav(UUID id, Position initialPosition) {
+    public synchronized Uav registerUav(
+                            UUID id,
+                            Position initialPosition,
+                            UavStatus currentStatus
+    ) {
 
         if (uavRepository.findById(id).isPresent()) {
             throw new IllegalArgumentException(
@@ -25,7 +29,7 @@ public class UavService {
             );
         }
 
-        Uav uav = new Uav(id, initialPosition);
+        Uav uav = new Uav(id, initialPosition, currentStatus);
 
         return uavRepository.save(uav);
 

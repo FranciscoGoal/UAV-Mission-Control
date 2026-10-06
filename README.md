@@ -1,375 +1,273 @@
 # UAV Mission Control
 
+**A Java backend foundation for UAV telemetry, operational state, and command workflows.**
+
 [![Java](https://img.shields.io/badge/Java-25-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org/)
-[![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1.1-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
-[![CI](https://github.com/FranciscoGoal/UAV-Mission-Control/actions/workflows/ci.yml/badge.svg)](https://github.com/FranciscoGoal/UAV-Mission-Control/actions/workflows/ci.yml)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-An event-driven backend foundation for managing Unmanned Aerial Vehicles (UAVs) through real-time WebSocket/STOMP communication.
+Mission Control is being developed to connect UAV clients and operator interfaces through a single WebSocket/STOMP channel. Its goal is to support real-time position updates, controlled state transitions, and traceable command execution.
 
-The project models UAV registration, position tracking, operational status management, in-memory persistence, and messaging infrastructure. Its design follows layered and hexagonal architecture principles, keeping the domain independent from framework and infrastructure concerns.
+The current backend implements the core UAV model, application services, an in-memory repository, and WebSocket/STOMP configuration.
 
-> **Project status:** backend MVP under active development. The domain and application layers are functional; STOMP message handlers and outbound telemetry events are on the roadmap.
+> **Development status — Backend MVP.** Registration, lookup, position updates, and status updates are available through the application service. External STOMP handlers, outbound telemetry, and command execution are planned. The current implementation is not yet an end-to-end flight-control system.
 
-## Contents
+[Quick start](#quick-start) · [Capabilities](#capabilities) · [Architecture](#architecture) · [Messaging](#websocket-and-stomp) · [Roadmap](#roadmap)
 
-- [Highlights](#highlights)
-- [Technology Stack](#technology-stack)
-- [Architecture](#architecture)
-- [Domain Model](#domain-model)
-- [Application Flow](#application-flow)
-- [WebSocket and STOMP](#websocket-and-stomp)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Testing](#testing)
-- [Design Decisions](#design-decisions)
-- [Current Limitations](#current-limitations)
-- [Roadmap](#roadmap)
-- [License](#license)
+## Capabilities
 
-## Highlights
+| Area | Current implementation | Next step |
+|---|---|---|
+| UAV registry | Register and retrieve UAVs; reject duplicate identifiers | Require the reported registration state and expose STOMP handlers |
+| Position tracking | Update the current position with coordinate validation | Receive telemetry and publish updates |
+| Operational state | Store and update `UavStatus` | Enforce permitted state transitions |
+| Commands | Initial `UavCommand` contract | Implement execution, acknowledgements, and timeouts |
+| Messaging | WebSocket endpoint and STOMP broker configuration | Add message DTOs, handlers, and outbound events |
+| Storage | In-memory repository backed by `ConcurrentHashMap` | Add durable persistence |
+| Testing | Domain tests and Spring context startup tests | Extend service, messaging, and integration coverage |
 
-- Framework-independent domain model.
-- Geographic position validation through an immutable value object.
-- UAV registration, lookup, position updates, and status updates.
-- Repository abstraction based on dependency inversion.
-- Thread-safe in-memory repository adapter.
-- STOMP broker configuration over WebSocket.
-- Automated domain and Spring context tests.
-- Continuous integration with GitHub Actions.
+## Quick Start
 
-## Technology Stack
+### Prerequisites
 
-| Technology | Version | Purpose |
-|---|---:|---|
-| Java | 25 | Language and runtime |
-| Spring Boot | 4.1.1 | Application framework |
-| Spring WebSocket | Managed by Spring Boot | WebSocket and STOMP infrastructure |
-| Maven Wrapper | Maven 3.9.16 | Reproducible build and dependency management |
-| JUnit Jupiter | Managed by Spring Boot | Automated testing |
-| ConcurrentHashMap | JDK | Thread-safe in-memory persistence |
-| Mermaid | GitHub native | Technical diagrams |
+- **JDK 25**, available on `PATH` and configured through `JAVA_HOME` where required.
+- **Git**.
 
-## Architecture
+The repository includes the Maven Wrapper; a separate Maven installation is not required. Build and dependency versions are defined in `pom.xml` and `.mvn/wrapper/maven-wrapper.properties`.
 
-The codebase follows a layered design influenced by hexagonal architecture. The application service depends on a domain repository port, while infrastructure supplies the concrete adapter.
-
-```mermaid
-flowchart LR
-    Caller[Internal application caller]
-
-    subgraph Application
-        Service[UavService]
-    end
-
-    subgraph Domain
-        Uav[Uav]
-        Position[Position]
-        Status[UavStatus]
-        RepositoryPort[UavRepository]
-        Command[UavCommand]
-    end
-
-    subgraph Infrastructure
-        MemoryRepository[InMemoryUavRepository]
-        WebSocket[WebSocketConfiguration]
-        Broker[STOMP Simple Broker]
-    end
-
-    Caller --> Service
-    Service --> RepositoryPort
-    Service --> Uav
-    MemoryRepository -. implements .-> RepositoryPort
-    MemoryRepository --> Uav
-    Uav *-- Position
-    Uav --> Status
-    WebSocket --> Broker
-    Command -. initial contract .-> Uav
-```
-
-| Layer | Responsibility |
-|---|---|
-| Domain | Entities, value objects, validation rules, statuses, and repository contracts |
-| Application | Coordinates UAV use cases and persistence operations |
-| Infrastructure | Supplies in-memory persistence and WebSocket/STOMP configuration |
-| Bootstrap | Starts Spring Boot and discovers application components |
-
-The domain model has no dependency on Spring. Framework-specific annotations remain in the application bootstrap, service, and infrastructure adapters.
-
-## Domain Model
-
-`Uav` is the aggregate entity. It owns a current `Position` value and a `UavStatus`. The repository is currently in memory, so the following diagram represents conceptual domain relationships rather than a relational database schema.
-
-```mermaid
-erDiagram
-    UAV ||--|| POSITION : "has current position"
-
-    UAV {
-        UUID id PK
-        UavStatus status
-    }
-
-    POSITION {
-        double latitude
-        double longitude
-        double altitude
-    }
-```
-
-### Class Model
-
-```mermaid
-classDiagram
-    class Uav {
-        -UUID id
-        -Position position
-        -UavStatus status
-        +Uav(UUID id, Position position)
-        +updatePosition(Position position)
-        +updateStatus(UavStatus status)
-        +getId() UUID
-        +getPosition() Position
-        +getStatus() UavStatus
-    }
-
-    class Position {
-        <<record>>
-        +double latitude
-        +double longitude
-        +double altitude
-    }
-
-    class UavStatus {
-        <<enumeration>>
-        GROUND
-        TAKING_OFF
-        FLYING
-        RETURNING_HOME
-        LANDING
-        DISCONNECTED
-    }
-
-    class UavRepository {
-        <<interface>>
-        +save(Uav uav) Uav
-        +findById(UUID id) Optional~Uav~
-        +findAll() List~Uav~
-    }
-
-    class InMemoryUavRepository {
-        -ConcurrentMap~UUID, Uav~ uavs
-    }
-
-    class UavService {
-        -UavRepository uavRepository
-        +registerUav(UUID id, Position position) Uav
-        +getUav(UUID id) Uav
-        +updatePosition(UUID id, Position position) Uav
-        +updateStatus(UUID id, UavStatus status) Uav
-    }
-
-    Uav *-- Position
-    Uav --> UavStatus
-    UavService --> UavRepository
-    UavRepository --> Uav
-    InMemoryUavRepository ..|> UavRepository
-```
-
-### Domain Invariants
-
-| Property | Rule |
-|---|---|
-| UAV identifier | Cannot be `null` |
-| Initial UAV status | `GROUND` |
-| Latitude | Finite value from `-90` to `90` |
-| Longitude | Finite value from `-180` to `180` |
-| Altitude | Finite value greater than or equal to `0` |
-| Updated position or status | Cannot be `null` |
-
-## Application Flow
-
-The following sequence shows the currently implemented application flow. STOMP handlers will become the external entry point without changing the use case or domain layers.
-
-```mermaid
-sequenceDiagram
-    actor Caller as Internal caller
-    participant Service as UavService
-    participant Repository as UavRepository
-    participant Uav as Uav
-
-    Caller->>Service: updatePosition(id, newPosition)
-    Service->>Repository: findById(id)
-
-    alt UAV is not registered
-        Repository-->>Service: Optional.empty()
-        Service-->>Caller: IllegalArgumentException
-    else UAV is registered
-        Repository-->>Service: Uav
-        Service->>Uav: updatePosition(newPosition)
-        Service->>Repository: save(uav)
-        Repository-->>Service: Updated UAV
-        Service-->>Caller: Updated UAV
-    end
-```
-
-## WebSocket and STOMP
-
-The project uses WebSocket as its only planned external communication channel. STOMP provides application destinations, publish-subscribe topics, queues, and user-specific destinations.
-
-| Configuration | Destination |
-|---|---|
-| WebSocket handshake | `/ws` |
-| Application prefix | `/app` |
-| Simple broker | `/topic`, `/queue` |
-| User destinations | `/user` |
-
-### Target Messaging Flow
-
-Dashed connections represent the STOMP adapters and publications that are not implemented yet.
-
-```mermaid
-flowchart LR
-    UAVClient[UAV client]
-    Operator[Operator client]
-    Endpoint[WebSocket endpoint<br/>/ws]
-    Handler[STOMP message handlers]
-    Service[UavService]
-    Repository[UavRepository]
-    Broker[STOMP broker<br/>/topic /queue /user]
-
-    UAVClient --> Endpoint
-    Operator --> Endpoint
-    Endpoint -. planned .-> Handler
-    Handler -. planned .-> Service
-    Service --> Repository
-    Handler -. planned events .-> Broker
-    Broker -. notifications .-> UAVClient
-    Broker -. notifications .-> Operator
-```
-
-The transport and broker are configured. `@MessageMapping` handlers, message DTOs, and telemetry publications remain future work.
-
-## Project Structure
-
-```text
-src
-├── main
-│   ├── java/com/example/missioncontrol
-│   │   ├── MissionControlApplication.java
-│   │   ├── application/service
-│   │   │   └── UavService.java
-│   │   ├── domain/model
-│   │   │   ├── command/UavCommand.java
-│   │   │   ├── repository/UavRepository.java
-│   │   │   ├── Position.java
-│   │   │   ├── Uav.java
-│   │   │   └── UavStatus.java
-│   │   └── infrastructure
-│   │       ├── repository/InMemoryUavRepository.java
-│   │       └── websocket/WebSocketConfiguration.java
-│   └── resources
-│       └── application.properties
-└── test
-    └── java/com/example/missioncontrol
-        ├── MissionControlApplicationTests.java
-        └── domain/model/UavTest.java
-```
-
-## Getting Started
-
-### Requirements
-
-- JDK 25 or newer.
-- Git.
-- No local Maven installation is required; the Maven Wrapper is included.
-
-### Clone
+### Clone and run
 
 ```bash
 git clone https://github.com/FranciscoGoal/UAV-Mission-Control.git
 cd UAV-Mission-Control
 ```
 
-### Run
-
-Linux and macOS:
+**Linux / macOS**
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-Windows:
+If the wrapper is not executable, run `chmod +x mvnw` once.
+
+**Windows — PowerShell**
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-The application starts on port `8080` by default and exposes the WebSocket handshake endpoint at `/ws`.
+By default, the server starts on port `8080`. The WebSocket handshake endpoint is:
 
-### Package
+```text
+ws://localhost:8080/ws
+```
+
+Use a STOMP-capable WebSocket client. Starting the server makes the transport available; application messaging requires the planned handlers. The `/ws` endpoint does not serve an operator dashboard.
+
+### Build and test
+
+| Task | Linux / macOS | Windows — PowerShell |
+|---|---|---|
+| Run tests | `./mvnw clean test` | `.\mvnw.cmd clean test` |
+| Package the application | `./mvnw clean package` | `.\mvnw.cmd clean package` |
+
+After packaging, run the executable JAR generated in `target/`:
 
 ```bash
-./mvnw clean package
 java -jar target/MissionControl-0.0.1-SNAPSHOT.jar
 ```
 
-## Testing
+The filename reflects the artifact name and version currently declared in `pom.xml`.
 
-Run the complete test suite from a clean build:
+## Architecture
 
-```bash
-./mvnw clean test
+Mission Control uses a layered architecture with a repository port and an infrastructure adapter. The domain contains UAV data and validation rules; the application service coordinates use cases; infrastructure supplies storage and messaging configuration.
+
+```mermaid
+flowchart TD
+    Caller["Application caller"] --> Service["UavService"]
+
+    subgraph Application["Application layer"]
+        Service
+    end
+
+    subgraph Domain["Domain layer"]
+        Uav["Uav"]
+        Position["Position"]
+        Status["UavStatus"]
+        Port["UavRepository interface"]
+    end
+
+    subgraph Infrastructure["Infrastructure layer"]
+        Adapter["InMemoryUavRepository"]
+    end
+
+    Service --> Uav
+    Service --> Port
+    Uav --> Position
+    Uav --> Status
+    Adapter -. implements .-> Port
 ```
 
-Current automated coverage includes:
+The diagram shows the current use-case and persistence dependencies. WebSocket configuration exists separately; message handlers will connect the transport to the application service.
 
-- Spring application context startup.
-- Initial UAV status.
-- Position updates.
-- Status updates.
+| Component | Responsibility |
+|---|---|
+| `Uav` | Holds the identifier, current position, and operational status |
+| `Position` | Immutable value object that validates coordinates and altitude |
+| `UavStatus` | Defines the available operational states |
+| `UavService` | Coordinates registration, retrieval, position updates, and status updates |
+| `UavRepository` | Defines the persistence contract used by the application service |
+| `InMemoryUavRepository` | Implements the repository using an in-memory concurrent map |
+| `WebSocketConfiguration` | Configures the handshake endpoint and STOMP destination prefixes |
 
-GitHub Actions runs the clean test suite on every push and pull request to `main`.
+The domain has no Spring dependencies. The repository interface keeps application use cases independent of the storage implementation.
 
-## Design Decisions
+### Position update flow
 
-### WebSocket-Only Communication
+```mermaid
+sequenceDiagram
+    actor Caller
+    participant Service as UavService
+    participant Repository as UavRepository
+    participant UAV as Uav
 
-Mission control requires bidirectional, low-latency communication. WebSocket/STOMP is therefore the external interface for UAV telemetry, commands, and notifications.
+    Caller->>Service: updatePosition(id, position)
+    Service->>Repository: findById(id)
+    alt UAV exists
+        Repository-->>Service: Uav
+        Service->>UAV: updatePosition(position)
+        Service->>Repository: save(uav)
+        Repository-->>Service: Updated UAV
+        Service-->>Caller: Updated UAV
+    else UAV does not exist
+        Repository-->>Service: Optional.empty()
+        Service-->>Caller: IllegalArgumentException
+    end
+```
 
-### Validation at the Domain Boundary
+### Application service usage
 
-`Position` is an immutable value object. Invalid geographic coordinates cannot be constructed, keeping validation close to the business model.
+The current entry point is an injected `UavService`. This example is a method body in a Spring-managed component that receives the service through constructor injection:
 
-### Dependency Inversion
+```java
+UUID id = UUID.randomUUID();
+Position position = new Position(42.28, -8.73, 0);
 
-`UavService` depends on `UavRepository`, not on its in-memory implementation. A persistent adapter can replace the current repository without changing the application use cases.
+Uav registered = uavService.registerUav(id, position);
+uavService.updateStatus(id, UavStatus.TAKING_OFF);
+uavService.updatePosition(id, new Position(42.29, -8.74, 20));
+Uav current = uavService.getUav(id);
+```
 
-### In-Memory Persistence
+The snippet uses `java.util.UUID` and the domain types `Position`, `Uav`, and `UavStatus`. It demonstrates internal service calls; there is no corresponding external message handler yet.
 
-`InMemoryUavRepository` uses `ConcurrentHashMap`. This keeps the MVP lightweight while preserving a clear migration path to durable storage.
+Registering an existing identifier throws `IllegalArgumentException`. Retrieving or updating an unregistered UAV throws the same exception type. `findAll()` is available on the repository interface, but is not currently exposed by `UavService`.
 
-## Current Limitations
+## Domain Rules
 
-- Data is lost when the application stops.
-- STOMP message handlers and outbound telemetry events are not implemented yet.
-- UAV status transitions are not enforced as a state machine.
-- `UavCommand` is an initial contract without concrete command implementations.
-- Authentication and authorization are not implemented.
-- Telemetry history is not retained.
-- Domain errors are not yet translated into protocol-specific messages.
-- Test coverage currently focuses on the domain core and application startup.
+| Property | Constraint |
+|---|---|
+| UAV identifier | Must not be `null` |
+| Initial status | `GROUND` |
+| Latitude | Finite value between `-90` and `90` |
+| Longitude | Finite value between `-180` and `180` |
+| Altitude | Finite value greater than or equal to `0` |
+| Position and status updates | Must not be `null` |
+
+Available statuses are `GROUND`, `TAKING_OFF`, `FLYING`, `RETURNING_HOME`, `LANDING`, and `DISCONNECTED`.
+
+These values currently describe state. Transition rules are not yet enforced: defining the enum does not prevent an invalid jump between states.
+
+## WebSocket and STOMP
+
+WebSocket/STOMP is the planned external interface for telemetry, commands, and notifications. The project is designed around one WebSocket connection per client, with STOMP destinations separating message types. REST endpoints are outside the current interface design.
+
+| Setting | Configured value | Purpose |
+|---|---|---|
+| Handshake endpoint | `/ws` | Establish the WebSocket connection |
+| Application prefix | `/app` | Route messages to application handlers once implemented |
+| Broker prefixes | `/topic`, `/queue` | Route messages through the simple broker |
+| User destination prefix | `/user` | Support user-specific destination resolution |
+
+These are infrastructure settings, not a complete application messaging API. Registration, telemetry, and command destinations and payloads will be documented alongside their implementations.
+
+User destinations also require an appropriate session and identity design; a configured `/user` prefix does not provide authentication or authorization.
+
+## Technology
+
+| Technology | Role |
+|---|---|
+| Java 25 | Language and runtime |
+| Spring Boot 4.1.1 | Application bootstrap and dependency injection |
+| Spring WebSocket / STOMP | Bidirectional messaging infrastructure |
+| Maven Wrapper / Maven 3.9.16 | Build and dependency management |
+| JUnit Jupiter | Automated tests |
+| Mermaid | Architecture and interaction diagrams |
+
+## Code Organization
+
+Java sources are organized under `src/main/java/com/example/missioncontrol`.
+
+| Package or file | Contents |
+|---|---|
+| `MissionControlApplication.java` | Spring Boot entry point |
+| `application/service` | Application use cases |
+| `domain/model` | UAV entity, position value object, and statuses |
+| `domain/model/command` | Initial command contract |
+| `domain/model/repository` | Repository interface |
+| `infrastructure/repository` | In-memory storage adapter |
+| `infrastructure/websocket` | WebSocket/STOMP configuration |
+
+Application settings are in `src/main/resources/application.properties`. Tests are under `src/test/java/com/example/missioncontrol`.
+
+## Testing
+
+The repository contains four tests: three domain tests covering initial UAV status, position updates, and status updates, plus one Spring application context startup test.
+
+Service behavior, message contracts, command processing, and concurrent updates need further coverage as those workflows develop.
+
+## Engineering Considerations
+
+- **Validation belongs in the domain.** `Position` rejects invalid coordinates at construction, keeping its invariants independent of the transport.
+- **Storage is replaceable.** Application services depend on `UavRepository`, allowing a durable adapter to be introduced behind the same contract.
+- **In-memory state is temporary.** Registered UAVs and their current values are lost when the process stops. Telemetry history is not retained.
+- **Service operations share one lock.** All four public `UavService` methods are `synchronized`, so calls through the same service instance execute one at a time, including calls for different UAVs. This is mutual exclusion, not asynchronous command processing. Returned `Uav` objects remain mutable; direct entity or repository access bypasses that service lock.
+- **Protocol errors are still to be defined.** Domain and application errors are not yet mapped to client-facing STOMP error messages.
+- **Access control is pending.** Authentication and authorization are not implemented.
+
+## Architecture Decisions
+
+[ADR-001 — Require the current UAV status during registration](docs/adr/001-explicit-uav-status-registration.md) proposes accepting the reported operational state when a UAV registers. This supports scenarios where Mission Control starts tracking an aircraft that is already flying.
+
+**Status: proposed, not implemented.** The current constructor is still `Uav(UUID id, Position position)`, and `registerUav(UUID id, Position initialPosition)` still initializes the UAV as `GROUND`. The ADR describes the intended change; the code and tests retain the existing behavior.
 
 ## Roadmap
 
-- [ ] Add `@MessageMapping` handlers for registration and telemetry.
-- [ ] Publish position and status events to STOMP topics.
-- [ ] Complete asynchronous UAV command processing.
-- [ ] Add command acknowledgements, results, and expiration handling.
-- [ ] Introduce validated UAV state transitions.
-- [ ] Add persistent storage and schema migrations.
-- [ ] Secure WebSocket sessions and user destinations.
-- [ ] Add telemetry history and mission tracking.
-- [ ] Add STOMP contract and integration tests.
+The following stages describe the intended development order, without release-date commitments.
+
+### 1. Complete the messaging loop
+
+- [ ] Implement explicit registration status as proposed in ADR-001.
+- [ ] Define message DTOs and application destinations.
+- [ ] Add STOMP handlers for registration and telemetry.
+- [ ] Publish position and status updates.
+- [ ] Define consistent client-facing error responses.
+- [ ] Add messaging contract and integration tests.
+- [ ] Add a CI workflow to run the test suite on pushes and pull requests.
+
+### 2. Implement controlled command execution
+
+- [ ] Enforce valid UAV state transitions.
+- [ ] Implement asynchronous command processing.
+- [ ] Track command acknowledgements, results, and expiration.
+- [ ] Define and test concurrent update behavior.
+
+### 3. Extend persistence and operational capabilities
+
+- [ ] Introduce persistent storage and schema migrations.
+- [ ] Retain telemetry history and add mission tracking.
+- [ ] Secure WebSocket sessions and authorize messaging operations.
 - [ ] Add metrics, health monitoring, and structured logging.
 - [ ] Package the application with Docker.
 

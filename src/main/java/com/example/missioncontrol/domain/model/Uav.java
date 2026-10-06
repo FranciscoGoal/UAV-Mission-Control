@@ -9,7 +9,7 @@ public class Uav {
     private Position position;
     private UavStatus status;
 
-    public Uav(UUID id, Position position) {
+    public Uav(UUID id, Position position, UavStatus status) {
         this.id = Objects.requireNonNull(id, "UAV id cannot be null");
         this.position = Objects.requireNonNull(position, "Position cannot be null");
         this.status = UavStatus.GROUND;
