@@ -7,7 +7,7 @@ public interface UavCommand {
 
     UUID    id();
     String  uavId();
-   // CommandType type();
+    CommandType type();
     Instant createdAt();
     Instant expiresAt();
 }
