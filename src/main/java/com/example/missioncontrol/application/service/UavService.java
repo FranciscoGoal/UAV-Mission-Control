@@ -46,7 +46,7 @@ public class UavService {
 
         uav.updatePosition(newPosition);
 
-        return uavRepository.save(uav);
+       return uavRepository.save(uav);
     }
 
     public synchronized Uav updateStatus(UUID id, UavStatus newStatus) {
