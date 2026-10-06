@@ -37,7 +37,7 @@
     <rect x="112" y="367" width="76" height="4" rx="2" fill="#2dd4bf"/>
     <text x="210" y="378" fill="#bae6fd" font-size="24" font-weight="450">State, telemetry and command foundations for UAV operations</text>
     <g transform="translate(112 425)">
-      <rect width="162" height="42" rx="21" fill="#0e2c3e" stroke="#38bdf8" stroke-opacity=".65"/>
+      <rect width="244" height="42" rx="21" fill="#0e2c3e" stroke="#38bdf8" stroke-opacity=".65"/>
       <circle cx="25" cy="21" r="5" fill="#2dd4bf" filter="url(#softGlow)"/>
       <text x="42" y="27" fill="#dff7ff" font-size="15" font-weight="650" letter-spacing="1.4">BACKEND PROTOTYPE</text>
     </g>
@@ -66,7 +66,7 @@
 
   <g font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" fill="#bae6fd">
     <path d="M1280 124h146" stroke="#38bdf8" stroke-opacity=".55"/>
-    <text x="1290" y="113" letter-spacing="2">POSITION LOCK</text>
+    <text x="1290" y="113" letter-spacing="2">TELEMETRY</text>
     <path d="M1260 400h182" stroke="#2dd4bf" stroke-opacity=".55"/>
     <text x="1290" y="426" letter-spacing="2">COMMAND MODEL</text>
   </g>
