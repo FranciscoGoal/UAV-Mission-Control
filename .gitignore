@@ -1,9 +1,12 @@
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+# GitHub Actions (Tu error actual)
+.github/workflows/
 
+# Spring Boot y Compilación
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# Herramientas de Desarrollo y Logs
 ### STS ###
 .apt_generated
 .classpath
@@ -14,20 +17,20 @@ target/
 .sts4-cache
 
 ### IntelliJ IDEA ###
-.idea
+.idea/
 *.iws
 *.iml
 *.ipr
 
 ### NetBeans ###
 /nbproject/private/
+/build/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
 
-### VS Code ###
-.vscode/
+### Logs y Temporales ###
+*.log
+log/
+tmp/
