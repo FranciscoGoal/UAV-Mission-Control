@@ -5,24 +5,31 @@ import org.junit.jupiter.api.Test;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class UavTest {
 
     @Test
-    void startsOnGround() {
+    void preservesConstructorArguments() {
+        UUID id = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        Position position = new Position(42.28, -8.73, 20);
+
         Uav uav = new Uav(
-                UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                new Position(42.28, -8.73, 0),
-                UavStatus.GROUND
+                id,
+                position,
+                UavStatus.FLYING
         );
 
-        assertEquals(UavStatus.GROUND, uav.getStatus());
+        assertEquals(id, uav.getId());
+        assertSame(position, uav.getPosition());
+        assertEquals(UavStatus.FLYING, uav.getStatus());
     }
 
     @Test
     void updatesPosition() {
         Uav uav = new Uav(
-                UUID.fromString("00000000-0000-0000-000-000000000001"),
+                UUID.fromString("00000000-0000-0000-0000-000000000001"),
                 new Position(42.28, -8.73, 0),
                 UavStatus.FLYING
         );
@@ -45,5 +52,29 @@ class UavTest {
         uav.updateStatus(newStatus);
 
         assertEquals(newStatus, uav.getStatus());
+    }
+
+    @Test
+    void rejectsNullConstructorArguments() {
+        UUID id = UUID.randomUUID();
+        Position position = new Position(42.28, -8.73, 0);
+
+        assertThrows(NullPointerException.class,
+                () -> new Uav(null, position, UavStatus.GROUND));
+        assertThrows(NullPointerException.class,
+                () -> new Uav(id, null, UavStatus.GROUND));
+        assertThrows(NullPointerException.class,
+                () -> new Uav(id, position, null));
+    }
+
+    @Test
+    void rejectsNullUpdatesWithoutChangingState() {
+        Position initialPosition = new Position(42.28, -8.73, 0);
+        Uav uav = new Uav(UUID.randomUUID(), initialPosition, UavStatus.GROUND);
+
+        assertThrows(NullPointerException.class, () -> uav.updatePosition(null));
+        assertThrows(NullPointerException.class, () -> uav.updateStatus(null));
+        assertSame(initialPosition, uav.getPosition());
+        assertEquals(UavStatus.GROUND, uav.getStatus());
     }
 }
