@@ -1,7 +1,7 @@
 package com.example.missioncontrol.infrastructure.controller;
 
 import com.example.missioncontrol.application.service.UavService;
-import com.example.missioncontrol.domain.model.Position;
+import com.example.missioncontrol.domain.model.Telemetry;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.stereotype.Controller;
 
@@ -19,12 +19,12 @@ public class TelemetryController {
 
     @MessageMapping("/telemetry")
     public void receiveTelemetry(
-            Position position,
+            Telemetry telemetry,
             Principal uav
     ) {
-        uavService.updatePosition(
+        uavService.updateTelemetry(
                     UUID.fromString(uav.getName()),
-                    position
+                    telemetry
         );
     }
 }

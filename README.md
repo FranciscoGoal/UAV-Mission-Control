@@ -20,7 +20,7 @@ The repository is intentionally being built from the core outward: establish rel
 
 | UAV state | Command model | Messaging foundation | Development safety net |
 |:---|:---|:---|:---|
-| Register aircraft and maintain their latest validated position and reported status. | Model takeoff, navigation, landing, return-home, and initialize execution snapshots. | Accept position updates at `/app/telemetry` over WebSocket/STOMP with an in-process broker. | Exercise domain, service, repository, concurrency, configuration, controller, and context behavior with automated tests. |
+| Register aircraft and maintain their latest validated position and reported status. | Model takeoff, navigation, landing, return-home, and initialize execution snapshots. | Accept and retain complete telemetry snapshots at `/app/telemetry` over WebSocket/STOMP. | Exercise domain, service, repository, concurrency, configuration, controller, and context behavior with automated tests. |
 
 ### What works today
 
@@ -30,12 +30,13 @@ The repository is intentionally being built from the core outward: establish rel
 - **Command vocabulary:** represent `TAKE_OFF`, `GO_TO`, `LAND`, and `RETURN_HOME` with identity and expiration metadata.
 - **Execution snapshots:** retain the latest recorded command status while rejecting older updates or changed command definitions.
 - **Execution initialization:** create a `PENDING` execution for a stored command through `CommandService`.
-- **STOMP position ingestion:** accept a validated `Position` at `/app/telemetry`, derive the UAV identifier from the connection principal, and update the registered aircraft.
-- **Replaceable storage boundaries:** keep UAV, command, and execution data behind repository interfaces with concurrent in-memory adapters.
+- **STOMP telemetry ingestion:** accept a validated `Telemetry` snapshot at `/app/telemetry`, verify its UAV identifier against the connection principal, and update the registered aircraft.
+- **Telemetry history:** retain strictly chronological position, status, battery, and timestamp snapshots for each UAV in memory.
+- **Replaceable storage boundaries:** keep UAV, telemetry, command, and execution data behind repository interfaces with concurrent in-memory adapters.
 
 ## Architecture
 
-Mission Control has a partial inbound telemetry flow: messages sent to `/app/telemetry` are handled by `TelemetryController` and update the latest position of an already registered UAV through `UavService`. Internal callers can also register, retrieve, and update UAVs directly through that service. A separate `CommandService` initializes a `PENDING` execution for a command already present in the command repository.
+Mission Control has an inbound telemetry flow: messages sent to `/app/telemetry` are handled by `TelemetryController`. `UavService` verifies the payload identity, retains the complete snapshot, and updates the latest position and status of the registered UAV. Internal callers can also register, retrieve, and update UAVs directly through that service. A separate `CommandService` initializes a `PENDING` execution for a command already present in the command repository.
 
 <p align="center">
   <a href="docs/diagrams.md">
@@ -43,7 +44,7 @@ Mission Control has a partial inbound telemetry flow: messages sent to `/app/tel
   </a>
 </p>
 
-All current repositories are process-local and in memory. The `Telemetry` record models a richer snapshot, but the active STOMP handler currently consumes only `Position`. There is no database, telemetry history, external message broker, command dispatcher, simulator, or operator interface in this version.
+All current repositories are process-local and in memory. Telemetry history disappears when the process stops. There is no database, external message broker, command dispatcher, simulator, or operator interface in this version.
 
 ## Run Mission Control
 
@@ -62,17 +63,23 @@ cd UAV-Mission-Control
 
 The server starts on port `8080` and exposes the WebSocket handshake endpoint at `ws://localhost:8080/ws`. STOMP application messages use the `/app` prefix, while the in-process broker is configured for `/topic` and `/queue` destinations and `/user` destinations are enabled.
 
-The current inbound application destination is `/app/telemetry`. It accepts a position payload:
+The current inbound application destination is `/app/telemetry`. It accepts a complete telemetry payload:
 
 ```json
 {
-  "latitude": 42.29,
-  "longitude": -8.74,
-  "altitude": 50.0
+  "uavId": "00000000-0000-0000-0000-000000000001",
+  "position": {
+    "latitude": 42.29,
+    "longitude": -8.74,
+    "altitude": 50.0
+  },
+  "status": "FLYING",
+  "battery": 75,
+  "lastUpdate": "2026-10-09T00:30:00Z"
 }
 ```
 
-This flow requires the UAV to have been registered through an internal caller and the connection `Principal` name to be that UAV's UUID. Authentication, external registration, outbound state publication, acknowledgements, and protocol-level error responses are not implemented yet.
+This flow requires the UAV to have been registered through an internal caller and the connection `Principal` name to match the payload's `uavId`. Samples must have a later `lastUpdate` than the latest stored sample for that UAV. Authentication, external registration, outbound state publication, acknowledgements, and protocol-level error responses are not implemented yet.
 
 On Windows PowerShell, run `.\mvnw.cmd spring-boot:run` instead. To verify or package the project:
 
@@ -90,21 +97,21 @@ The roadmap separates the current backend foundation from the capabilities still
 
 - [x] Model UAV identity, position, and reported operational status.
 - [x] Validate geographic coordinates and altitude.
-- [x] Provide in-memory UAV, command, and execution repositories.
+- [x] Provide in-memory UAV, telemetry, command, and execution repositories.
 - [x] Model takeoff, navigation, landing, and return-home commands.
 - [x] Retain the latest command execution snapshot.
 - [x] Configure WebSocket/STOMP transport and an in-process broker.
-- [x] Accept UAV position updates at `/app/telemetry`.
+- [x] Accept complete UAV telemetry at `/app/telemetry`.
 - [x] Initialize `PENDING` command executions for stored commands.
 
 ### Real-time messaging
 
 - [ ] Expose UAV registration through a documented transport contract.
-- [ ] Integrate the richer `Telemetry` model with the active messaging flow.
+- [x] Integrate the richer `Telemetry` model with the active messaging flow.
 - [ ] Publish UAV state and telemetry updates to subscribers.
 - [ ] Define acknowledgements and consistent protocol errors.
 - [ ] Add authentication and reliable UAV identity binding.
-- [ ] Detect stale or out-of-order telemetry.
+- [x] Detect stale or out-of-order telemetry.
 
 ### Command loop
 
@@ -119,7 +126,7 @@ The roadmap separates the current backend foundation from the capabilities still
 ### Operational depth
 
 - [ ] Add durable persistence.
-- [ ] Store telemetry history.
+- [x] Store in-memory telemetry history.
 - [ ] Model missions.
 - [ ] Add authorization policies.
 - [ ] Build an end-to-end UAV simulator.

@@ -4,27 +4,27 @@ This gallery documents the behavior implemented in the repository today. Every d
 
 ## System Architecture
 
-The UAV service is the only connected application workflow. Command storage and STOMP transport are implemented foundations, but no application handler currently joins them.
+The STOMP transport feeds validated telemetry snapshots into the UAV application flow through `TelemetryController`. `UavService` updates current UAV state and retains chronological telemetry history. `CommandService` also connects stored commands to initial `PENDING` execution snapshots, while dispatch and result handling remain outside the current boundary.
 
 ![Mission Control system architecture](assets/diagrams/system-architecture.svg)
 
-All three repositories use concurrent in-memory maps. Their contents disappear when the process stops, and there is no transactional relationship among them.
+All four repositories use concurrent in-memory maps. Their contents disappear when the process stops, and there is no transactional relationship among them.
 
 ## Command Interaction
 
-The code can construct, validate, and store commands and execution snapshots through direct Java calls. It does not yet receive commands through transport, dispatch them to a UAV, process acknowledgements, or publish results.
+The code can construct and store commands through direct Java calls. `CommandService` looks up a stored command and creates its initial `PENDING` execution snapshot. It does not yet receive commands through transport, validate the target against a registered UAV, dispatch commands, process acknowledgements, or publish results.
 
 ![Current command interaction](assets/diagrams/command-interaction.svg)
 
 An execution repository update is accepted when it embeds the same command and its timestamp is not older than the stored snapshot. Status-to-status transitions are not evaluated.
 
-## Position Update Flow
+## Telemetry Update Flow
 
-There is no external telemetry contract yet. The implemented telemetry-like behavior replaces the latest position of a registered UAV through `UavService`.
+STOMP clients can send a complete `Telemetry` payload to `/app/telemetry`. `TelemetryController` derives the authenticated UAV UUID from the connection principal, while `UavService` requires it to match the payload's `uavId`.
 
 ![Current position update flow](assets/diagrams/telemetry-flow.svg)
 
-`Position` validates finite latitude, longitude, and altitude values before the service is called. The service rejects updates for unknown UAV identifiers.
+`Telemetry` validates its identity, position, status, battery percentage, and timestamp. The service rejects unknown UAVs and the repository rejects duplicate or out-of-order samples. Accepted samples update the UAV's current position and status and remain available in an in-memory chronological history. Authentication, outbound publication, and protocol-level errors are not implemented.
 
 ## UAV Status Behavior
 
@@ -46,7 +46,7 @@ There are no terminal-state guards, automatic expiration, retries, timeout proce
 
 ![UAV domain model](assets/diagrams/uav-domain.svg)
 
-`Uav` owns its latest immutable `Position` value and current `UavStatus`. `UavService` coordinates registration, lookup, and updates through the repository port.
+`Uav` owns its latest immutable `Position` value and current `UavStatus`. `UavService` coordinates registration, lookup, direct updates, and complete telemetry updates through the UAV and telemetry repository ports.
 
 ## Command Domain
 

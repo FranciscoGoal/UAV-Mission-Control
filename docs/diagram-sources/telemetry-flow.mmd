@@ -1,27 +1,34 @@
 sequenceDiagram
-    actor Caller as Internal caller
-    participant Position as Position
+    actor Client as STOMP client
+    participant Transport as WebSocket / STOMP
+    participant Telemetry as Telemetry
+    participant Controller as TelemetryController
     participant Service as UavService
-    participant Repository as UavRepository
+    participant UavRepository as UavRepository
+    participant TelemetryRepository as TelemetryRepository
     participant Uav as Uav
 
-    Caller->>Position: create(latitude, longitude, altitude)
-    Position->>Position: validate finite values and ranges
-    alt Invalid position
-        Position-->>Caller: IllegalArgumentException
-    else Valid position
-        Position-->>Caller: validated position
-        Caller->>Service: updatePosition(uavId, position)
-        Service->>Repository: findById(uavId)
-        alt UAV is registered
-            Repository-->>Service: Uav
-            Service->>Uav: updatePosition(position)
-            Service->>Repository: save(uav)
-            Repository-->>Service: updated UAV
-            Service-->>Caller: updated UAV
-        else UAV is unknown
-            Repository-->>Service: empty
-            Service-->>Caller: IllegalArgumentException
+    Client->>Transport: SEND /app/telemetry + telemetry payload
+    Transport->>Telemetry: deserialize and validate snapshot
+    alt Invalid telemetry
+        Telemetry-->>Transport: IllegalArgumentException
+    else Valid telemetry
+        Telemetry-->>Transport: validated snapshot
+        Transport->>Controller: receiveTelemetry(telemetry, principal)
+        Controller->>Controller: parse principal name as UUID
+        Controller->>Service: updateTelemetry(uavId, telemetry)
+        Service->>Service: require matching authenticated and payload IDs
+        Service->>UavRepository: findById(uavId)
+        alt UAV is registered and sample is newer
+            UavRepository-->>Service: Uav
+            Service->>TelemetryRepository: save(telemetry)
+            TelemetryRepository-->>Service: stored snapshot
+            Service->>Uav: update position and status
+            Service->>UavRepository: save(uav)
+            UavRepository-->>Service: updated UAV
+            Service-->>Controller: updated UAV
+        else Identity mismatch, unknown UAV, or stale sample
+            Service-->>Controller: IllegalArgumentException
         end
     end
-    Note over Caller,Uav: This is an internal latest-position update, not an external telemetry pipeline.
+    Note over Client,Uav: History is process-local. No acknowledgement or state update is published.

@@ -1,23 +1,29 @@
 flowchart TB
-    subgraph TransportLane["CONFIGURED TRANSPORT"]
+    subgraph TransportLane["INBOUND STOMP FLOW"]
         direction LR
         Client["STOMP client"] --> WS["WebSocket<br/>/ws"]
         WS --> Routing["STOMP routing<br/>/app · /topic · /queue · /user"]
-        Routing -. "no handlers" .-> Boundary["Application boundary<br/>not implemented"]
+        Routing --> Controller["TelemetryController<br/>/app/telemetry"]
     end
 
     subgraph UavLane["IMPLEMENTED UAV FLOW"]
         direction LR
         Caller["Internal Java caller"] --> Service["UavService"]
-        Service --> Uav["UAV domain<br/>Uav · Position · UavStatus"]
+        Controller --> Service
+        Service --> Uav["UAV domain<br/>Uav · Position · UavStatus · Telemetry"]
         Service --> UavPort["UavRepository"]
+        Service --> TelemetryPort["TelemetryRepository"]
         UavStore["In-memory UAV store"] -. "implements" .-> UavPort
+        TelemetryStore["In-memory telemetry history"] -. "implements" .-> TelemetryPort
     end
 
-    subgraph CommandLane["COMMAND FOUNDATION"]
+    subgraph CommandLane["PARTIAL COMMAND FLOW"]
         direction LR
         Commands["Command domain<br/>4 command types"] --> CommandPort["CommandRepository"]
-        Executions["CommandExecution<br/>latest status snapshot"] --> ExecutionPort["CommandExecutionRepository"]
+        CommandCaller["Internal Java caller"] --> CommandService["CommandService<br/>create PENDING execution"]
+        CommandService --> CommandPort
+        CommandService --> Executions["CommandExecution<br/>latest status snapshot"]
+        Executions --> ExecutionPort["CommandExecutionRepository"]
         CommandStore["In-memory command store"] -. "implements" .-> CommandPort
         ExecutionStore["In-memory execution store"] -. "implements" .-> ExecutionPort
     end
@@ -28,8 +34,6 @@ flowchart TB
     classDef transport fill:#10243a,stroke:#38bdf8,stroke-width:2px,color:#e8f6ff;
     classDef domain fill:#0d2d38,stroke:#2dd4bf,stroke-width:2px,color:#e8f6ff;
     classDef storage fill:#172036,stroke:#818cf8,stroke-width:2px,color:#e8f6ff;
-    classDef gap fill:#251a2e,stroke:#fb7185,stroke-width:2px,stroke-dasharray:6 4,color:#ffe4e6;
-    class Client,WS,Routing,Caller,Service transport;
-    class Uav,Commands,Executions,UavPort,CommandPort,ExecutionPort domain;
-    class UavStore,CommandStore,ExecutionStore storage;
-    class Boundary gap;
+    class Client,WS,Routing,Controller,Caller,Service,CommandCaller,CommandService transport;
+    class Uav,Commands,Executions,UavPort,TelemetryPort,CommandPort,ExecutionPort domain;
+    class UavStore,TelemetryStore,CommandStore,ExecutionStore storage;

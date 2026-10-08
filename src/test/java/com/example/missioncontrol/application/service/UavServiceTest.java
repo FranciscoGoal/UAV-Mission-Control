@@ -1,12 +1,15 @@
 package com.example.missioncontrol.application.service;
 
 import com.example.missioncontrol.domain.model.Position;
+import com.example.missioncontrol.domain.model.Telemetry;
 import com.example.missioncontrol.domain.model.Uav;
 import com.example.missioncontrol.domain.model.UavStatus;
+import com.example.missioncontrol.domain.model.repository.TelemetryRepository;
 import com.example.missioncontrol.domain.model.repository.UavRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -27,12 +31,14 @@ class UavServiceTest {
     private static final Position INITIAL_POSITION = new Position(42.28, -8.73, 0);
 
     private UavRepository repository;
+    private TelemetryRepository telemetryRepository;
     private UavService service;
 
     @BeforeEach
     void setUp() {
         repository = mock(UavRepository.class);
-        service = new UavService(repository);
+        telemetryRepository = mock(TelemetryRepository.class);
+        service = new UavService(repository, telemetryRepository);
     }
 
     @Test
@@ -160,7 +166,78 @@ class UavServiceTest {
         verify(repository, never()).save(any());
     }
 
+    @Test
+    void persistsTelemetryAndUpdatesCurrentUavState() {
+        Uav existing = uav();
+        Telemetry telemetry = telemetry(ID, Instant.parse("2026-10-09T00:30:00Z"));
+        when(repository.findById(ID)).thenReturn(Optional.of(existing));
+        when(repository.save(existing)).thenReturn(existing);
+
+        Uav result = service.updateTelemetry(ID, telemetry);
+
+        assertSame(existing, result);
+        assertSame(telemetry.position(), existing.getPosition());
+        assertEquals(telemetry.status(), existing.getStatus());
+        verify(telemetryRepository).save(telemetry);
+        verify(repository).save(existing);
+    }
+
+    @Test
+    void rejectsTelemetryForDifferentAuthenticatedUav() {
+        Telemetry telemetry = telemetry(
+                UUID.randomUUID(),
+                Instant.parse("2026-10-09T00:30:00Z")
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.updateTelemetry(ID, telemetry)
+        );
+        verify(repository, never()).findById(any());
+        verify(telemetryRepository, never()).save(any());
+    }
+
+    @Test
+    void rejectsTelemetryForUnknownUav() {
+        Telemetry telemetry = telemetry(ID, Instant.parse("2026-10-09T00:30:00Z"));
+        when(repository.findById(ID)).thenReturn(Optional.empty());
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.updateTelemetry(ID, telemetry)
+        );
+        verify(telemetryRepository, never()).save(any());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void doesNotUpdateUavWhenTelemetryIsStale() {
+        Uav existing = uav();
+        Telemetry telemetry = telemetry(ID, Instant.parse("2026-10-09T00:30:00Z"));
+        when(repository.findById(ID)).thenReturn(Optional.of(existing));
+        doThrow(new IllegalArgumentException("stale"))
+                .when(telemetryRepository).save(telemetry);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.updateTelemetry(ID, telemetry)
+        );
+        assertSame(INITIAL_POSITION, existing.getPosition());
+        assertEquals(UavStatus.GROUND, existing.getStatus());
+        verify(repository, never()).save(any());
+    }
+
     private Uav uav() {
         return new Uav(ID, INITIAL_POSITION, UavStatus.GROUND);
+    }
+
+    private Telemetry telemetry(UUID uavId, Instant lastUpdate) {
+        return new Telemetry(
+                uavId,
+                new Position(42.29, -8.74, 20),
+                UavStatus.FLYING,
+                (byte) 75,
+                lastUpdate
+        );
     }
 }
